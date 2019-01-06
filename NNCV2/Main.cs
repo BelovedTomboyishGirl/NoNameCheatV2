@@ -302,7 +302,8 @@ namespace Nncv2
         {
             foreach (var point in _extract)
             {
-                if (point.isActiveAndEnabled)
+                string ExitStatus = $"{point.Status}";
+                if (ExitStatus.Contains("RegularMode"))
                 {
                     var exfilContainerBoundingVector = Camera.main.WorldToScreenPoint(point.transform.position);
                     if (exfilContainerBoundingVector.z > 0.01)
