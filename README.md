@@ -1,9 +1,10 @@
-# Update logs
+# Update logs (Testing Branches) 
 
-* 20/11/2018: ESP Fixed by (UC) bobjubel
-* 12/11/2018: Code clear + new fix
-* 11/11/2018: ESP Health fix + not every player check
-* 10/11/2018: ESP Fix (by Chokx)
+NNCV2.5.1:
+- Memory Optimization
+- Memory clear implementation (CAN BE INSTABLE)
+- GetLocalPlayer implementation (using _localPlayer)
+
 
 # Functionnality
 
