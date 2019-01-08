@@ -1,5 +1,8 @@
 # Update logs (Testing Branches) 
 
+NNCV2.5.2:
+- Aimbot and ESP fix
+
 NNCV2.5.1:
 - Memory Optimization
 - Memory clear implementation (CAN BE INSTABLE)
