@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Diagnostics;
+using System.IO;
 using UnityEngine;
 using EFT;
 
@@ -24,15 +24,15 @@ namespace Nncv2
         protected float _infoUpdateInterval = 15f;
 
 
-        private bool _isInfoMenuActive;
+        private bool _isInfoMenuActive = true;
         private bool _pInfor;
         private bool _showExtractInfo;
         private bool _showItems;
         private bool _showContainers;
 
         private double _lowDist = 250.00; // Default distance to midscreen
-        private int _AimSpeed = 1; // Default speed = high speed for aimbot (higher value = smoother)
-        private bool _smooth = true;
+        private int _AimSpeed = 10; // Default speed = high speed for aimbot (higher value = smoother, 
+        private bool _smooth = false;
         private bool _aim;
         private float _ContainerDistance = 50f;
         private float _lootItemDistance = 50f;
@@ -66,6 +66,10 @@ namespace Nncv2
         }
         #endregion
 
+        private void Awake()
+        {
+            Debug.logger.logEnabled = false;
+        }
 
         private void Start()
         {
@@ -81,7 +85,6 @@ namespace Nncv2
             _itemsNextUpdateTime = 0;
             _localPlayer = null;
             _localPlayerRefresh = 0;
-            GC.Collect();
         }
 
         public void Load()
@@ -94,8 +97,11 @@ namespace Nncv2
 
         public void Unload()
         {
+            Clear();
             Destroy(GameObjectHolder);
+            Destroy(GameObjectHolder.GetComponent<Main>());
             Destroy(this);
+            DestroyObject(this);
         }
 
         private void OnDisable()
@@ -107,12 +113,13 @@ namespace Nncv2
             Clear();
         }
 
-
+        
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.End))
             {
                 Unload();
+                
             }
             if (Input.GetKeyDown(KeyCode.F11))
             {
@@ -122,43 +129,37 @@ namespace Nncv2
             {
                 _aim = !_aim;
             }
-            if (Input.GetKeyDown(KeyCode.F10))
+            if (Camera.main.transform.position != null)
             {
-                _localPlayer.Transform.position = new Vector3(_localPlayer.Transform.position.x + 1, _localPlayer.Transform.position.x + 1, _localPlayer.Transform.position.z);
+                    camPos = Camera.main.transform.position;
             }
-            camPos = Camera.main.transform.position;
             if (Time.time > _localPlayerRefresh)
             {
                 GetLocalPlayer();
-                _localPlayerRefresh = Time.time + 20.0f;
+                _localPlayerRefresh = Time.time + 180.0f;
             }
+            if (_aim)
+            {
+                Aimbot();
+            }
+     
+
         }
-
-
         private void OnGUI()
         {
             if (_isInfoMenuActive)
             {
                 GUIOverlay();
             }
-
             if ((_pInfor && Time.time >= _playNextUpdateTime) || (_aim && Time.time >= _playNextUpdateTime))
             {
                 _playerInfo = FindObjectsOfType<Player>();
                 _playNextUpdateTime = Time.time + _infoUpdateInterval;
             }
-
-            if (_aim)
-            {
-                Aimbot();
-            }
-
             if (_pInfor)
             {
                 DrawPlayers();
             }
-
-
             if (_showExtractInfo && Time.time >= _extNextUpdateTime)
             {
                 if (Time.time >= _extNextUpdateTime)
@@ -168,7 +169,6 @@ namespace Nncv2
                 }
                 DrawExtractInfo();
             }
-
             if (_showContainers)
             {
                 if (Time.time >= _weaponBoxesNextUpdateTime)
@@ -178,8 +178,6 @@ namespace Nncv2
                 }
                 DrawWeaponBoxesContainers();
             }
-
-
             if (_showItems)
             {
                 if (Time.time >= _itemsNextUpdateTime)
@@ -190,11 +188,12 @@ namespace Nncv2
                 ShowItemESP();
             }
         }
-
         private void GetLocalPlayer()
         {
             foreach (Player player in FindObjectsOfType<Player>())
             {
+                if (player == null) continue;
+
                 if (EPointOfView.FirstPerson == player.PointOfView && player != null)
                 {
                     _localPlayer = player;
@@ -204,14 +203,14 @@ namespace Nncv2
 
         private void Aimbot()
         {
-            int aimPosX = 0;
-            int aimPosY = 0;
+            float aimPosX = 0;
+            float aimPosY = 0;
             foreach (Player player in _playerInfo)
             {
                 if (!player.IsVisible) continue;
                 Vector3 playerPos = player.Transform.position;
                 float distanceToObject = Vector3.Distance(camPos, player.Transform.position);
-                if (distanceToObject < 200 && player.GetComponent<Renderer>().isVisible)
+                if (distanceToObject < 200)
                 {
                     if (player.HealthController.IsAlive && player.IsVisible && EPointOfView.FirstPerson != player.PointOfView)
                     {
@@ -220,8 +219,8 @@ namespace Nncv2
                         double distance = Vector2.Distance(new Vector2(Screen.width, Screen.height)/2, playerHeadVector);
                         if (distance < _lowDist)
                         {
-                            aimPosX = (int)playerHeadVector.x;
-                            aimPosY = (int)playerHeadVector.y;
+                            aimPosX = playerHeadVector.x;
+                            aimPosY = playerHeadVector.y;
                         }
                     }
                 }
@@ -231,7 +230,7 @@ namespace Nncv2
         }
 
         // From a member of the CS GO section not by me but i've modified some thing for EFT
-        private void AimAtPos(int x, int y)
+        private void AimAtPos(float x, float y)
         {
             int ScreenCenterX = (Screen.width / 2);
             int ScreenCenterY = (Screen.height / 2);
@@ -270,8 +269,8 @@ namespace Nncv2
                 Move((int)TargetX, (int)TargetY);
                 return;
             }
-            TargetX /= _AimSpeed;
-            TargetY /= _AimSpeed;
+            TargetX /= (int)_AimSpeed;
+            TargetY /= (int)_AimSpeed;
             if (Math.Abs(TargetX) < 1)
             {
                 if (TargetX > 0)
@@ -298,11 +297,12 @@ namespace Nncv2
         }
 
 
+
         private void DrawExtractInfo()
         {
             foreach (var point in _extract)
             {
-                if (point.isActiveAndEnabled)
+                if (point != null)
                 {
                     var exfilContainerBoundingVector = Camera.main.WorldToScreenPoint(point.transform.position);
                     if (exfilContainerBoundingVector.z > 0.01)
@@ -316,8 +316,6 @@ namespace Nncv2
             }
         }
 
-
-
         private void DrawWeaponBoxesContainers()
         {
             foreach (var contain in _containers)
@@ -329,7 +327,7 @@ namespace Nncv2
                     if (containBoundingVector.z > 0.01)
                     {
                         GUI.color = Color.cyan;
-                        string boxText = $"{contain.name} - [{distance}]m";
+                        string boxText = $"{contain.name} - [{(int)distance}]m";
                         GUI.Label(new Rect(containBoundingVector.x - 50f, (float)Screen.height - containBoundingVector.y, 100f, 50f), boxText);
                     }
                 }
@@ -341,14 +339,13 @@ namespace Nncv2
             foreach (var Item in _item)
             {
                 if (Item == null) continue;
-
                 float distance = Vector3.Distance(camPos, Item.transform.position);
                 Vector3 ItemBoundingVector = Camera.main.WorldToScreenPoint(Item.transform.position);
                 if (ItemBoundingVector.z > 0.01 && distance <= _lootItemDistance && (Item.name.Contains("key") || Item.name.Contains("usb") || Item.name.Contains("alkali") || Item.name.Contains("ophalmo") || Item.name.Contains("gunpowder") || Item.name.Contains("phone") || Item.name.Contains("gas") || Item.name.Contains("money") || Item.name.Contains("document") || Item.name.Contains("quest") || Item.name.Contains("spark") || Item.name.Contains("grizzly") || Item.name.Contains("sv-98") || Item.name.Contains("sv98") || Item.name.Contains("rsas") || Item.name.Contains("salewa") || Item.name.Equals("bitcoin") || Item.name.Contains("dvl") || Item.name.Contains("m4a1") || Item.name.Contains("roler") || Item.name.Contains("chain") || Item.name.Contains("wallet") || Item.name.Contains("RSASS") || Item.name.Contains("glock") || Item.name.Contains("SA-58")))
                 {
-                    string text = $"{Item.name} - [{distance}]m";
+                    string text = $"{Item.name} - [{(int)distance}]m";
                     GUI.color = Color.magenta;
-                    GUI.Label(new Rect(ItemBoundingVector.x - 50f, (float)Screen.height - ItemBoundingVector.y, 100f, 50f), text);
+                    GUI.Label(new Rect(ItemBoundingVector.x - 50f, Screen.height - ItemBoundingVector.y, 100f, 50f), text);
                 }
             }
         }
@@ -359,27 +356,35 @@ namespace Nncv2
         {
             foreach (var player in _playerInfo)
             {
-                if (player == null || !player.IsVisible) continue;
-                Vector3 playerPos = player.Transform.position;
-                float distanceToObject = Vector3.Distance(camPos, player.Transform.position);
-                Vector3 playerBoundingVector = Camera.main.WorldToScreenPoint(playerPos);
-                if (distanceToObject <= _viewdistance && playerBoundingVector.z > 0.01)
+                try
                 {
-                    Vector3 playerHeadVector = Camera.main.WorldToScreenPoint(player.PlayerBones.Head.position);
-                    float boxVectorX = playerBoundingVector.x;
-                    float boxVectorY = playerHeadVector.y + 10f;
-                    float boxHeight = Math.Abs(playerHeadVector.y - playerBoundingVector.y) + 10f;
-                    float boxWidth = boxHeight * 0.65f;
-                    var IsAI = player.Profile.Info.RegistrationDate <= 0;
-                    var playerColor = player.HealthController.IsAlive ? GetPlayerColor(player.Side) : Color.gray;
-                    Utility.DrawBox(boxVectorX - boxWidth / 2f, (float)Screen.height - boxVectorY, boxWidth, boxHeight, playerColor);
-                    Utility.DrawLine(new Vector2(playerHeadVector.x - 2f, (float)Screen.height - playerHeadVector.y), new Vector2(playerHeadVector.x + 2f, (float)Screen.height - playerHeadVector.y), playerColor);
-                    Utility.DrawLine(new Vector2(playerHeadVector.x, (float)Screen.height - playerHeadVector.y - 2f), new Vector2(playerHeadVector.x, (float)Screen.height - playerHeadVector.y + 2f), playerColor);
-                    var playerName = IsAI ? "AI" : player.Profile.Info.Nickname;
-                    string playerText = player.HealthController.IsAlive ? playerName : (playerName + " (Dead)");
-                    string playerTextDraw = string.Format("{0} [{1}]", playerText, (int)distanceToObject);
-                    var playerTextVector = GUI.skin.GetStyle(playerText).CalcSize(new GUIContent(playerText));
-                    GUI.Label(new Rect(playerBoundingVector.x - playerTextVector.x / 2f, (float)Screen.height - boxVectorY - 20f, 300f, 50f), playerTextDraw);
+                    if (player == null || !player.IsVisible || player.Profile.Info.Nickname == string.Empty) continue;
+                    Vector3 playerPos = player.Transform.position;
+                    float distanceToObject = Vector3.Distance(camPos, player.Transform.position);
+                    Vector3 playerBoundingVector = Camera.main.WorldToScreenPoint(playerPos);
+                    if (distanceToObject <= _viewdistance && playerBoundingVector.z > 0.01)
+                    {
+                        Vector3 playerHeadVector = Camera.main.WorldToScreenPoint(player.PlayerBones.Head.position);
+                        Gizmos.DrawCube(playerPos, new Vector3(1, 1, 2));
+                        float boxVectorX = playerBoundingVector.x;
+                        float boxVectorY = playerHeadVector.y + 10f;
+                        float boxHeight = Math.Abs(playerHeadVector.y - playerBoundingVector.y) + 10f;
+                        float boxWidth = boxHeight * 0.65f;
+                        var IsAI = player.Profile.Info.RegistrationDate <= 0;
+                        var playerColor = player.HealthController.IsAlive ? GetPlayerColor(player.Side) : Color.gray;
+                        Utility.DrawBox(boxVectorX - boxWidth / 2f, Screen.height - boxVectorY, boxWidth, boxHeight, playerColor);
+                        Utility.DrawLine(new Vector2(playerHeadVector.x - 2f, Screen.height - playerHeadVector.y), new Vector2(playerHeadVector.x + 2f, Screen.height - playerHeadVector.y), playerColor);
+                        Utility.DrawLine(new Vector2(playerHeadVector.x, Screen.height - playerHeadVector.y - 2f), new Vector2(playerHeadVector.x, Screen.height - playerHeadVector.y + 2f), playerColor);
+                        var playerName = IsAI ? "AI" : player.Profile.Info.Nickname;
+                        string playerText = player.HealthController.IsAlive ? playerName : (playerName + " (Dead)");
+                        string playerTextDraw = string.Format("{0} [{1}]", playerText, (int)distanceToObject);
+                        var playerTextVector = GUI.skin.GetStyle(playerText).CalcSize(new GUIContent(playerText));
+                        GUI.Label(new Rect(playerBoundingVector.x - playerTextVector.x / 2f, Screen.height - boxVectorY - 20f, 300f, 50f), playerTextDraw);
+                    }
+                }
+                catch(NullReferenceException ex)
+                {
+                    File.AppendAllText(@"C:\exeptionseft\DrawPlay.txt", ex.ToString() + Environment.NewLine);
                 }
             }
 
@@ -429,7 +434,7 @@ namespace Nncv2
             if (_smooth)
             {
                 GUI.Label(new Rect(110f, 240f, 150f, 20f), "Speed smoothing");
-                _AimSpeed = (int)(GUI.HorizontalSlider(new Rect(220f, 240f, 120f, 20f), _AimSpeed, 1.0F, 100.0F)); //Display  aimspeed (more great value = smoother aim)
+                _AimSpeed = (int)(GUI.HorizontalSlider(new Rect(220f, 240f, 120f, 20f), _AimSpeed, 2f, 100f)); //Display  aimspeed (more great value = smoother aim)
 
             }
             _viewdistance = GUI.HorizontalSlider(new Rect(150f, 260f, 120f, 20f), _viewdistance, 0.0F, 1500.0F); // Distance of players ESP
